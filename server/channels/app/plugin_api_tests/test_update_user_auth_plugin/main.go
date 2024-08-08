@@ -5,10 +5,12 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/v8/channels/app/plugin_api_tests"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 type MyPlugin struct {
@@ -83,5 +85,12 @@ func (p *MyPlugin) MessageWillBePosted(_ *plugin.Context, _ *model.Post) (*model
 }
 
 func main() {
+	NewRelicAgent, err := newrelic.NewApplication(newrelic.ConfigFromEnvironment())
+	if err != nil {
+		panic(err)
+	}
+
 	plugin.ClientMain(&MyPlugin{})
+
+	NewRelicAgent.Shutdown(5 * time.Second)
 }

@@ -626,6 +626,9 @@ func getRedirectLocation(c *Context, w http.ResponseWriter, r *http.Request) {
 		return http.ErrUseLastResponse
 	}
 
+	// the "http.Head()" net/http method can not be instrumented and its outbound traffic can not be traced
+	// please see these examples of code patterns for external http calls that can be instrumented:
+	// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 	res, err := client.Head(url)
 	if err != nil {
 		// Cache failures to prevent retries.

@@ -57,11 +57,12 @@ func CheckClientCompatibility(agentString string) bool {
 	return true
 }
 
-func Handle404(a app.AppIface, w http.ResponseWriter, r *http.Request) {
+func Handle404(a app.AppIface, w http.ResponseWriter, r *http.Request, nrTxn *newrelic.Transaction) {
+	defer nrTxn.StartSegment("Handle404").End()
 	err := model.NewAppError("Handle404", "api.context.404.app_error", nil, "", http.StatusNotFound)
 	ipAddress := utils.GetIPAddress(r, a.Config().ServiceSettings.TrustedProxyIPHeader)
 	mlog.Debug("not found handler triggered", mlog.String("path", r.URL.Path), mlog.Int("code", 404), mlog.String("ip", ipAddress))
-	if IsAPICall(a, r) {
+	if IsAPICall(a, r, nrTxn) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(err.StatusCode)
 		err.DetailedError = "There doesn't appear to be an api call for the url='" + r.URL.Path + "'.  Typo? are you missing a team_id or user_id as part of the url?"
@@ -69,12 +70,14 @@ func Handle404(a app.AppIface, w http.ResponseWriter, r *http.Request) {
 	} else if *a.Config().ServiceSettings.WebserverMode == "disabled" {
 		http.NotFound(w, r)
 	} else {
-		utils.RenderWebAppError(a.Config(), w, r, err, a.AsymmetricSigningKey())
+		utils.RenderWebAppError(a.Config(), w, r, err, a.AsymmetricSigningKey(), nrTxn)
 	}
 }
 
-func IsAPICall(a app.AppIface, r *http.Request) bool {
+func IsAPICall(a app.AppIface, r *http.Request, nrTxn *newrelic.Transaction) bool {
+	defer nrTxn.StartSegment("IsAPICall").End()
 	subpath, _ := utils.GetSubpathFromConfig(a.Config())
+	nrTxn.NoticeError(_)
 
 	return strings.HasPrefix(r.URL.Path, path.Join(subpath, "api")+"/")
 }

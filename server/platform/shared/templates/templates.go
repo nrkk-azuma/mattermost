@@ -31,8 +31,9 @@ type Data struct {
 	HTML  map[string]template.HTML
 }
 
-func GetTemplateDirectory() (string, bool) {
-	return fileutils.FindDir("templates")
+func GetTemplateDirectory(nrTxn *newrelic.Transaction) (string, bool) {
+	defer nrTxn.StartSegment("GetTemplateDirectory").End()
+	return fileutils.FindDir("templates", nrTxn)
 }
 
 // NewFromTemplates creates a new templates container using a

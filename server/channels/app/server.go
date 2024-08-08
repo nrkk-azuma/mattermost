@@ -23,10 +23,6 @@ import (
 	"github.com/getsentry/sentry-go"
 	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
-	"github.com/rs/cors"
-	"golang.org/x/crypto/acme/autocert"
-
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/httpservice"
 	"github.com/mattermost/mattermost/server/public/shared/i18n"
@@ -78,6 +74,10 @@ import (
 	"github.com/mattermost/mattermost/server/v8/platform/shared/filestore"
 	"github.com/mattermost/mattermost/server/v8/platform/shared/mail"
 	"github.com/mattermost/mattermost/server/v8/platform/shared/templates"
+	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/pkg/errors"
+	"github.com/rs/cors"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 var SentryDSN = "https://9d7c9cccf549479799f880bcf4f26323@o94110.ingest.sentry.io/5212327"
@@ -822,17 +822,21 @@ var corsAllowedMethods = []string{
 
 // golang.org/x/crypto/acme/autocert/autocert.go
 func handleHTTPRedirect(w http.ResponseWriter, r *http.Request) {
+	nrTxn := newrelic.FromContext(r.Context())
+
 	if r.Method != "GET" && r.Method != "HEAD" {
 		http.Error(w, "Use HTTPS", http.StatusBadRequest)
 		return
 	}
-	target := "https://" + stripPort(r.Host) + r.URL.RequestURI()
+	target := "https://" + stripPort(r.Host, nrTxn) + r.URL.RequestURI()
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
 // golang.org/x/crypto/acme/autocert/autocert.go
-func stripPort(hostport string) string {
+func stripPort(hostport string, nrTxn *newrelic.Transaction) string {
+	defer nrTxn.StartSegment("stripPort").End()
 	host, _, err := net.SplitHostPort(hostport)
+	nrTxn.NoticeError(err)
 	if err != nil {
 		return hostport
 	}

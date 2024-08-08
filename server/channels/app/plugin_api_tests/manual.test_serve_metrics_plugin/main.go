@@ -5,8 +5,10 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 type Plugin struct {
@@ -23,5 +25,12 @@ func (p *Plugin) ServeMetrics(_ *plugin.Context, w http.ResponseWriter, r *http.
 }
 
 func main() {
+	NewRelicAgent, err := newrelic.NewApplication(newrelic.ConfigFromEnvironment())
+	if err != nil {
+		panic(err)
+	}
+
 	plugin.ClientMain(&Plugin{})
+
+	NewRelicAgent.Shutdown(5 * time.Second)
 }

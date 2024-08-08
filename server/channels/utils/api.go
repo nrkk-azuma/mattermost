@@ -52,21 +52,25 @@ func CheckEmbeddedCookie(r *http.Request) bool {
 	return cookie.Value == "1"
 }
 
-func RenderWebAppError(config *model.Config, w http.ResponseWriter, r *http.Request, err *model.AppError, s crypto.Signer) {
+func RenderWebAppError(config *model.Config, w http.ResponseWriter, r *http.Request, err *model.AppError, s crypto.Signer, nrTxn *newrelic.Transaction) {
+	defer nrTxn.StartSegment("RenderWebAppError").End()
 	RenderWebError(config, w, r, err.StatusCode, url.Values{
 		"message": []string{err.Message},
-	}, s)
+	}, s, nrTxn)
 }
 
-func RenderWebError(config *model.Config, w http.ResponseWriter, r *http.Request, status int, params url.Values, s crypto.Signer) {
+func RenderWebError(config *model.Config, w http.ResponseWriter, r *http.Request, status int, params url.Values, s crypto.Signer, nrTxn *newrelic.Transaction) {
+	defer nrTxn.StartSegment("RenderWebError").End()
 	queryString := params.Encode()
 
-	subpath, _ := GetSubpathFromConfig(config)
+	subpath, _ := GetSubpathFromConfig(config, nrTxn)
+	nrTxn.NoticeError(_)
 
 	h := crypto.SHA256
 	sum := h.New()
 	sum.Write([]byte(path.Join(subpath, "error") + "?" + queryString))
 	signature, err := s.Sign(rand.Reader, sum.Sum(nil), h)
+	nrTxn.NoticeError(err)
 	if err != nil {
 		http.Error(w, "", http.StatusInternalServerError)
 		return

@@ -43,6 +43,9 @@ func (s *Server) downloadFromURL(downloadURL string) ([]byte, error) {
 
 	var resp *http.Response
 	err = utils.ProgressiveRetry(func() error {
+		// the "http.Get()" net/http method can not be instrumented and its outbound traffic can not be traced
+		// please see these examples of code patterns for external http calls that can be instrumented:
+		// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 		resp, err = client.Get(downloadURL)
 
 		if err != nil {

@@ -5,7 +5,6 @@ package sqlstore
 
 import (
 	"context"
-	"database/sql"
 	dbsql "database/sql"
 	"fmt"
 	"path"
@@ -409,7 +408,7 @@ func (ss *SqlStore) GetMasterX() *sqlxDBWrapper {
 	return ss.masterX
 }
 
-func (ss *SqlStore) SetMasterX(db *sql.DB) {
+func (ss *SqlStore) SetMasterX(db *dbsql.DB) {
 	ss.masterX = newSqlxDBWrapper(sqlx.NewDb(db, ss.DriverName()),
 		time.Duration(*ss.settings.QueryTimeout)*time.Second,
 		*ss.settings.Trace)
@@ -418,7 +417,7 @@ func (ss *SqlStore) SetMasterX(db *sql.DB) {
 	}
 }
 
-func (ss *SqlStore) GetInternalMasterDB() *sql.DB {
+func (ss *SqlStore) GetInternalMasterDB() *dbsql.DB {
 	return ss.GetMasterX().DB.DB
 }
 
@@ -507,7 +506,7 @@ func (ss *SqlStore) setDB(replica *atomic.Pointer[sqlxDBWrapper], handle *dbsql.
 	}
 }
 
-func (ss *SqlStore) GetInternalReplicaDB() *sql.DB {
+func (ss *SqlStore) GetInternalReplicaDB() *dbsql.DB {
 	if len(ss.settings.DataSourceReplicas) == 0 || ss.lockedToMaster || !ss.hasLicense() {
 		return ss.GetMasterX().DB.DB
 	}

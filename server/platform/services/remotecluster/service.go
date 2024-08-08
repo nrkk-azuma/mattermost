@@ -14,6 +14,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/mattermost/mattermost/server/v8/channels/store"
 	"github.com/mattermost/mattermost/server/v8/einterfaces"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 const (
@@ -120,6 +121,7 @@ func NewRemoteClusterService(server ServerIface, app AppIface) (*Service, error)
 		Transport: transport,
 		Timeout:   SendTimeout,
 	}
+	client.Transport = newrelic.NewRoundTripper(client.Transport)
 
 	service := &Service{
 		server:                   server,

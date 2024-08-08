@@ -27,6 +27,9 @@ func (a *App) GetOpenGraphMetadata(requestURL string) ([]byte, error) {
 		return ogJSONGeneric, nil
 	}
 
+	// the "http.Get()" net/http method can not be instrumented and its outbound traffic can not be traced
+	// please see these examples of code patterns for external http calls that can be instrumented:
+	// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 	res, err := a.HTTPService().MakeClient(false).Get(requestURL)
 	if err != nil {
 		return nil, err

@@ -17,7 +17,9 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"time"
 
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"golang.org/x/tools/imports"
 )
 
@@ -47,6 +49,11 @@ func init() {
 }
 
 func main() {
+	NewRelicAgent, err := newrelic.NewApplication(newrelic.ConfigFromEnvironment())
+	if err != nil {
+		panic(err)
+	}
+
 	flag.Parse()
 
 	code, err := generateLayer("OpenTracingAppLayer", outputFileTemplate)
@@ -62,6 +69,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	NewRelicAgent.Shutdown(5 * time.Second)
 }
 
 type methodParam struct {

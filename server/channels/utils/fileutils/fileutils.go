@@ -24,7 +24,8 @@ func CommonBaseSearchPaths() []string {
 	return paths
 }
 
-func findPath(path string, baseSearchPaths []string, workingDirFirst bool, filter func(os.FileInfo) bool) string {
+func findPath(path string, baseSearchPaths []string, workingDirFirst bool, filter func(os.FileInfo) bool, nrTxn *newrelic.Transaction) string {
+	defer nrTxn.StartSegment("findPath").End()
 	if filepath.IsAbs(path) {
 		if _, err := os.Stat(path); err == nil {
 			return path
@@ -63,6 +64,7 @@ func findPath(path string, baseSearchPaths []string, workingDirFirst bool, filte
 
 	for _, parent := range searchPaths {
 		found, err := filepath.Abs(filepath.Join(parent, path))
+		nrTxn.NoticeError(err)
 		if err != nil {
 			continue
 		} else if fileInfo, err := os.Stat(found); err == nil {
@@ -79,8 +81,9 @@ func findPath(path string, baseSearchPaths []string, workingDirFirst bool, filte
 	return ""
 }
 
-func FindPath(path string, baseSearchPaths []string, filter func(os.FileInfo) bool) string {
-	return findPath(path, baseSearchPaths, true, filter)
+func FindPath(path string, baseSearchPaths []string, filter func(os.FileInfo) bool, nrTxn *newrelic.Transaction) string {
+	defer nrTxn.StartSegment("FindPath").End()
+	return findPath(path, baseSearchPaths, true, filter, nrTxn)
 }
 
 // FindFile looks for the given file in nearby ancestors relative to the current working
@@ -93,10 +96,11 @@ func FindFile(path string) string {
 
 // fileutils.FindDir looks for the given directory in nearby ancestors relative to the current working
 // directory as well as the directory of the executable, falling back to `./` if not found.
-func FindDir(dir string) (string, bool) {
+func FindDir(dir string, nrTxn *newrelic.Transaction) (string, bool) {
+	defer nrTxn.StartSegment("FindDir").End()
 	found := FindPath(dir, CommonBaseSearchPaths(), func(fileInfo os.FileInfo) bool {
 		return fileInfo.IsDir()
-	})
+	}, nrTxn)
 	if found == "" {
 		return "./", false
 	}

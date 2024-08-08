@@ -20,14 +20,14 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
-
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/mattermost/mattermost/server/public/shared/request"
 	"github.com/mattermost/mattermost/server/v8/channels/utils"
 	"github.com/mattermost/mattermost/server/v8/einterfaces"
+	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -195,6 +195,8 @@ func (pm *platformMetrics) initMetricsRouter() error {
 }
 
 func (pm *platformMetrics) servePluginMetricsRequest(w http.ResponseWriter, r *http.Request) {
+	nrTxn := newrelic.FromContext(r.Context())
+
 	pluginID := mux.Vars(r)["plugin_id"]
 
 	pluginsEnvironment := pm.getPluginsEnv()
@@ -209,6 +211,7 @@ func (pm *platformMetrics) servePluginMetricsRequest(w http.ResponseWriter, r *h
 	}
 
 	hooks, err := pluginsEnvironment.HooksForPlugin(pluginID)
+	nrTxn.NoticeError(err)
 	if err != nil {
 		mlog.Debug("Access to route for non-existent plugin",
 			mlog.String("missing_plugin_id", pluginID),
@@ -218,7 +221,7 @@ func (pm *platformMetrics) servePluginMetricsRequest(w http.ResponseWriter, r *h
 		return
 	}
 
-	subpath, err := utils.GetSubpathFromConfig(pm.cfgFn())
+	subpath, err := utils.GetSubpathFromConfig(pm.cfgFn(), nrTxn)
 	if err != nil {
 		appErr := model.NewAppError("ServePluginMetricsRequest", "app.plugin.subpath_parse.app_error",
 			nil, "Failed to parse SiteURL subpath", http.StatusInternalServerError).Wrap(err)

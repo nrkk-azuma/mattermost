@@ -16,10 +16,6 @@ import (
 	"time"
 
 	"github.com/klauspost/compress/gzhttp"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	spanlog "github.com/opentracing/opentracing-go/log"
-
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/i18n"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
@@ -29,6 +25,10 @@ import (
 	"github.com/mattermost/mattermost/server/v8/channels/store/opentracinglayer"
 	"github.com/mattermost/mattermost/server/v8/channels/utils"
 	"github.com/mattermost/mattermost/server/v8/platform/services/tracing"
+	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	spanlog "github.com/opentracing/opentracing-go/log"
 )
 
 const (
@@ -153,6 +153,8 @@ func (h Handler) basicSecurityChecks(c *Context, w http.ResponseWriter, r *http.
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	nrTxn := newrelic.FromContext(r.Context())
+
 	w = newWrappedWriter(w)
 	now := time.Now()
 
@@ -186,7 +188,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.AppContext = request.NewContext(
 		context.Background(),
 		requestID,
-		utils.GetIPAddress(r, c.App.Config().ServiceSettings.TrustedProxyIPHeader),
+		utils.GetIPAddress(r, c.App.Config().ServiceSettings.TrustedProxyIPHeader, nrTxn),
 		r.Header.Get("X-Forwarded-For"),
 		r.URL.Path,
 		r.UserAgent(),
@@ -194,7 +196,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		t,
 	)
 
-	c.Params = ParamsFromRequest(r)
+	c.Params = ParamsFromRequest(r, nrTxn)
 	c.Logger = c.App.Log()
 
 	h.basicSecurityChecks(c, w, r)
@@ -207,6 +209,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		span, ctx := tracing.StartRootSpanByContext(context.Background(), "web:ServeHTTP")
 		carrier := opentracing.HTTPHeadersCarrier(r.Header)
 		_ = opentracing.GlobalTracer().Inject(span.Context(), opentracing.HTTPHeaders, carrier)
+		nrTxn.NoticeError(_)
 		ext.HTTPMethod.Set(span, r.Method)
 		ext.HTTPUrl.Set(span, c.AppContext.Path())
 		ext.PeerAddress.Set(span, c.AppContext.IPAddress())
@@ -241,6 +244,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 
 	subpath, _ := utils.GetSubpathFromConfig(c.App.Config())
+	nrTxn.NoticeError(_)
 	siteURLHeader := app.GetProtocol(r) + "://" + r.Host + subpath
 	if c.App.Channels().License().IsCloud() {
 		siteURLHeader = *c.App.Config().ServiceSettings.SiteURL + subpath

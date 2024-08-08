@@ -196,7 +196,8 @@ func UpdateAssetsSubpathFromConfig(config *model.Config) error {
 	return UpdateAssetsSubpath(subpath)
 }
 
-func GetSubpathFromConfig(config *model.Config) (string, error) {
+func GetSubpathFromConfig(config *model.Config, nrTxn *newrelic.Transaction) (string, error) {
+	defer nrTxn.StartSegment("GetSubpathFromConfig").End()
 	if config == nil {
 		return "", errors.New("no config provided")
 	} else if config.ServiceSettings.SiteURL == nil {
@@ -204,6 +205,7 @@ func GetSubpathFromConfig(config *model.Config) (string, error) {
 	}
 
 	u, err := url.Parse(*config.ServiceSettings.SiteURL)
+	nrTxn.NoticeError(err)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse SiteURL from config")
 	}

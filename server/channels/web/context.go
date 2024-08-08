@@ -16,6 +16,7 @@ import (
 	"github.com/mattermost/mattermost/server/v8/channels/app"
 	"github.com/mattermost/mattermost/server/v8/channels/audit"
 	"github.com/mattermost/mattermost/server/v8/channels/utils"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 type Context struct {
@@ -210,7 +211,10 @@ func (c *Context) ExtendSessionExpiryIfNeeded(w http.ResponseWriter, r *http.Req
 }
 
 func (c *Context) RemoveSessionCookie(w http.ResponseWriter, r *http.Request) {
+	nrTxn := newrelic.FromContext(r.Context())
+
 	subpath, _ := utils.GetSubpathFromConfig(c.App.Config())
+	nrTxn.NoticeError(_)
 
 	cookie := &http.Cookie{
 		Name:     model.SessionCookieToken,

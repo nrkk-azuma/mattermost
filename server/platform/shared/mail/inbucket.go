@@ -12,6 +12,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 const (
@@ -56,6 +58,9 @@ func GetMailBox(email string) (results JSONMessageHeaderInbucket, err error) {
 	parsedEmail := ParseEmail(email)
 
 	url := fmt.Sprintf("%s%s%s", getInbucketHost(), InbucketAPI, parsedEmail)
+	// the "http.Get()" net/http method can not be instrumented and its outbound traffic can not be traced
+	// please see these examples of code patterns for external http calls that can be instrumented:
+	// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 	resp, err := http.Get(url)
 
 	if err != nil {
@@ -89,6 +94,9 @@ func GetMessageFromMailbox(email, id string) (JSONMessageInbucket, error) {
 	var record JSONMessageInbucket
 
 	url := fmt.Sprintf("%s%s%s/%s", getInbucketHost(), InbucketAPI, parsedEmail, id)
+	// the "http.Get()" net/http method can not be instrumented and its outbound traffic can not be traced
+	// please see these examples of code patterns for external http calls that can be instrumented:
+	// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 	emailResponse, err := http.Get(url)
 	if err != nil {
 		return record, err
@@ -119,6 +127,9 @@ func GetMessageFromMailbox(email, id string) (JSONMessageInbucket, error) {
 }
 
 func downloadAttachment(url string) ([]byte, error) {
+	// the "http.Get()" net/http method can not be instrumented and its outbound traffic can not be traced
+	// please see these examples of code patterns for external http calls that can be instrumented:
+	// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 	attachmentResponse, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -140,6 +151,7 @@ func DeleteMailBox(email string) (err error) {
 	}
 
 	client := &http.Client{}
+	client.Transport = newrelic.NewRoundTripper(client.Transport)
 
 	resp, err := client.Do(req)
 	if err != nil {

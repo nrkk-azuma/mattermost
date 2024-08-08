@@ -12,9 +12,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/pkg/errors"
 )
 
 // RemoveStringFromSlice removes the first occurrence of a from slice.
@@ -91,7 +91,8 @@ func RemoveElementFromSliceAtIndex[S ~[]E, E any](slice S, index int) S {
 	return slices.Delete(slice, index, index+1)
 }
 
-func GetIPAddress(r *http.Request, trustedProxyIPHeader []string) string {
+func GetIPAddress(r *http.Request, trustedProxyIPHeader []string, nrTxn *newrelic.Transaction) string {
+	defer nrTxn.StartSegment("GetIPAddress").End()
 	address := ""
 
 	for _, proxyHeader := range trustedProxyIPHeader {
@@ -109,6 +110,7 @@ func GetIPAddress(r *http.Request, trustedProxyIPHeader []string) string {
 	}
 
 	host, _, _ := net.SplitHostPort(r.RemoteAddr)
+	nrTxn.NoticeError(_)
 
 	return host
 }
@@ -143,6 +145,7 @@ func GetURLWithCache(url string, cache *RequestCache, skip bool) ([]byte, error)
 	}
 
 	client := &http.Client{}
+	client.Transport = newrelic.NewRoundTripper(client.Transport)
 	resp, err := client.Do(req)
 	if err != nil {
 		cache.Data = nil

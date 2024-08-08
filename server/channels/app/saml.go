@@ -204,6 +204,9 @@ func (a *App) GetSamlMetadataFromIdp(idpMetadataURL string) (*model.SamlMetadata
 }
 
 func (a *App) FetchSamlMetadataFromIdp(url string) ([]byte, *model.AppError) {
+	// the "http.Get()" net/http method can not be instrumented and its outbound traffic can not be traced
+	// please see these examples of code patterns for external http calls that can be instrumented:
+	// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 	resp, err := a.HTTPService().MakeClient(false).Get(url)
 	if err != nil {
 		return nil, model.NewAppError("FetchSamlMetadataFromIdp", "app.admin.saml.invalid_response_from_idp.app_error", nil, "", http.StatusBadRequest).Wrap(err)

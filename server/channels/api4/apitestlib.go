@@ -19,10 +19,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	s3 "github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/stretchr/testify/require"
-
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin/plugintest/mock"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
@@ -35,6 +31,10 @@ import (
 	"github.com/mattermost/mattermost/server/v8/channels/wsapi"
 	"github.com/mattermost/mattermost/server/v8/config"
 	"github.com/mattermost/mattermost/server/v8/platform/services/searchengine"
+	s3 "github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/stretchr/testify/require"
 )
 
 type TestHelper struct {
@@ -536,6 +536,7 @@ func (th *TestHelper) CreateLocalClient(socketPath string) *model.Client4 {
 			},
 		},
 	}
+	httpClient.Transport = newrelic.NewRoundTripper(httpClient.Transport)
 
 	return &model.Client4{
 		APIURL:     "http://_" + model.APIURLSuffix,

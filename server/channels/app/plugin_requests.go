@@ -12,14 +12,16 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/mattermost/mattermost/server/v8/channels/utils"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 func (ch *Channels) ServePluginRequest(w http.ResponseWriter, r *http.Request) {
+	nrTxn := newrelic.FromContext(r.Context())
+
 	params := mux.Vars(r)
 	pluginID := params["plugin_id"]
 
@@ -34,6 +36,7 @@ func (ch *Channels) ServePluginRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hooks, err := pluginsEnvironment.HooksForPlugin(pluginID)
+	nrTxn.NoticeError(err)
 	if err != nil {
 		mlog.Debug("Access to route for non-existent plugin",
 			mlog.String("missing_plugin_id", pluginID),
@@ -82,6 +85,8 @@ func (a *App) ServeInterPluginRequest(w http.ResponseWriter, r *http.Request, so
 // ServePluginPublicRequest serves public plugin files
 // at the URL http(s)://$SITE_URL/plugins/$PLUGIN_ID/public/{anything}
 func (ch *Channels) ServePluginPublicRequest(w http.ResponseWriter, r *http.Request) {
+	nrTxn := newrelic.FromContext(r.Context())
+
 	if strings.HasSuffix(r.URL.Path, "/") {
 		http.NotFound(w, r)
 		return
@@ -100,12 +105,14 @@ func (ch *Channels) ServePluginPublicRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	publicFilesPath, err := pluginsEnv.PublicFilesPath(pluginID)
+	nrTxn.NoticeError(err)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
 	subpath, err := utils.GetSubpathFromConfig(ch.cfgSvc.Config())
+	nrTxn.NoticeError(err)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}

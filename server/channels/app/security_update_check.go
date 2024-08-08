@@ -81,6 +81,9 @@ func (s *Server) DoSecurityUpdateCheck() {
 			v.Set(PropSecurityTeamCount, strconv.FormatInt(teamCount, 10))
 		}
 
+		// the "http.Get()" net/http method can not be instrumented and its outbound traffic can not be traced
+		// please see these examples of code patterns for external http calls that can be instrumented:
+		// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 		res, err := http.Get(PropSecurityURL + "/security?" + v.Encode())
 		if err != nil {
 			mlog.Error("Failed to get security update information from Mattermost.")
@@ -104,6 +107,9 @@ func (s *Server) DoSecurityUpdateCheck() {
 						return
 					}
 
+					// the "http.Get()" net/http method can not be instrumented and its outbound traffic can not be traced
+					// please see these examples of code patterns for external http calls that can be instrumented:
+					// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 					resBody, err := http.Get(PropSecurityURL + "/bulletins/" + bulletin.Id)
 					if err != nil {
 						mlog.Error("Failed to get security bulletin details")

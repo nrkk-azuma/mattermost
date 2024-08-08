@@ -14,12 +14,12 @@ import (
 	"strings"
 
 	"github.com/klauspost/compress/gzhttp"
-
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/mattermost/mattermost/server/v8/channels/utils"
 	"github.com/mattermost/mattermost/server/v8/channels/utils/fileutils"
 	"github.com/mattermost/mattermost/server/v8/platform/shared/templates"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 var robotsTxt = []byte("User-agent: *\nDisallow: /\n")
@@ -139,12 +139,14 @@ func robotsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func unsupportedBrowserScriptHandler(w http.ResponseWriter, r *http.Request) {
+	nrTxn := newrelic.FromContext(r.Context())
+
 	if strings.HasSuffix(r.URL.Path, "/") {
 		http.NotFound(w, r)
 		return
 	}
 
-	templatesDir, _ := templates.GetTemplateDirectory()
+	templatesDir, _ := templates.GetTemplateDirectory(nrTxn)
 	http.ServeFile(w, r, filepath.Join(templatesDir, "unsupported_browser.js"))
 }
 

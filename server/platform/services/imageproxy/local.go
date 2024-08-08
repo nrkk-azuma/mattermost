@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 var imageContentTypes = []string{
@@ -134,20 +135,25 @@ func (backend *LocalBackend) GetImageDirect(imageURL string) (io.ReadCloser, str
 }
 
 func (backend *LocalBackend) ServeImage(w http.ResponseWriter, req *http.Request) {
-	proxyReq, err := newProxyRequest(req, backend.baseURL)
+	nrTxn := newrelic.FromContext(r.Context())
+
+	proxyReq, err := newProxyRequest(req, backend.baseURL, nrTxn)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("invalid request URL: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	actualReq, err := http.NewRequest("GET", proxyReq.String(), nil)
+	nrTxn.NoticeError(err)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	actualReq.Header.Set("Accept", strings.Join(imageContentTypes, ", "))
 
+	actualReq = newrelic.RequestWithTransactionContext(actualReq, nrTxn)
 	resp, err := backend.client.Do(actualReq)
+	nrTxn.NoticeError(err)
 	if err != nil {
 		mlog.Warn("error fetching remote image", mlog.Err(err))
 		statusCode := http.StatusInternalServerError
@@ -162,17 +168,18 @@ func (backend *LocalBackend) ServeImage(w http.ResponseWriter, req *http.Request
 
 	copyHeader(w.Header(), resp.Header, "Cache-Control", "Last-Modified", "Expires", "Etag", "Link")
 
-	if should304(req, resp) {
+	if should304(req, resp, nrTxn) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
 
 	contentType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	nrTxn.NoticeError(_)
 	if contentType == "" || contentType == "application/octet-stream" || contentType == "binary/octet-stream" {
 		// try to detect content type
 		b := bufio.NewReader(resp.Body)
 		resp.Body = io.NopCloser(b)
-		contentType = peekContentType(b)
+		contentType = peekContentType(b, nrTxn)
 	}
 	if resp.ContentLength != 0 && !contentTypeMatches(imageContentTypes, contentType) {
 		http.Error(w, msgNotAllowed, http.StatusForbidden)
@@ -217,17 +224,20 @@ func copyHeader(dst, src http.Header, keys ...string) {
 	}
 }
 
-func should304(req *http.Request, resp *http.Response) bool {
+func should304(req *http.Request, resp *http.Response, nrTxn *newrelic.Transaction) bool {
+	defer nrTxn.StartSegment("should304").End()
 	etag := resp.Header.Get("Etag")
 	if etag != "" && etag == req.Header.Get("If-None-Match") {
 		return true
 	}
 
 	lastModified, err := time.Parse(time.RFC1123, resp.Header.Get("Last-Modified"))
+	nrTxn.NoticeError(err)
 	if err != nil {
 		return false
 	}
 	ifModSince, err := time.Parse(time.RFC1123, req.Header.Get("If-Modified-Since"))
+	nrTxn.NoticeError(err)
 	if err != nil {
 		return false
 	}
@@ -240,8 +250,10 @@ func should304(req *http.Request, resp *http.Response) bool {
 
 // peekContentType peeks at the first 512 bytes of p, and attempts to detect
 // the content type.  Returns empty string if error occurs.
-func peekContentType(p *bufio.Reader) string {
+func peekContentType(p *bufio.Reader, nrTxn *newrelic.Transaction) string {
+	defer nrTxn.StartSegment("peekContentType").End()
 	byt, err := p.Peek(512)
+	nrTxn.NoticeError(err)
 	if err != nil && err != bufio.ErrBufferFull && err != io.EOF {
 		return ""
 	}
@@ -276,12 +288,14 @@ func (r proxyRequest) String() string {
 	return r.URL.String()
 }
 
-func newProxyRequest(r *http.Request, baseURL *url.URL) (*proxyRequest, error) {
+func newProxyRequest(r *http.Request, baseURL *url.URL, nrTxn *newrelic.Transaction) (*proxyRequest, error) {
+	defer nrTxn.StartSegment("newProxyRequest").End()
 	var err error
 	req := &proxyRequest{Original: r}
 
 	path := r.URL.EscapedPath()[1:] // strip leading slash
 	req.URL, err = parseURL(path)
+	nrTxn.NoticeError(err)
 	if err != nil || !req.URL.IsAbs() {
 		// first segment should be options
 		parts := strings.SplitN(path, "/", 2)
@@ -291,6 +305,7 @@ func newProxyRequest(r *http.Request, baseURL *url.URL) (*proxyRequest, error) {
 
 		var err error
 		req.URL, err = parseURL(parts[1])
+		nrTxn.NoticeError(err)
 		if err != nil {
 			return nil, URLError{fmt.Sprintf("unable to parse remote URL: %v", err), r.URL}
 		}

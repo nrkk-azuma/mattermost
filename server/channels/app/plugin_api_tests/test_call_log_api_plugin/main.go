@@ -4,10 +4,12 @@
 package main
 
 import (
-	"github.com/pkg/errors"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/pkg/errors"
 )
 
 type PluginUsingLogAPI struct {
@@ -19,7 +21,14 @@ type Foo struct {
 }
 
 func main() {
+	NewRelicAgent, err := newrelic.NewApplication(newrelic.ConfigFromEnvironment())
+	if err != nil {
+		panic(err)
+	}
+
 	plugin.ClientMain(&PluginUsingLogAPI{})
+
+	NewRelicAgent.Shutdown(5 * time.Second)
 }
 
 func (p *PluginUsingLogAPI) MessageWillBePosted(_ *plugin.Context, _ *model.Post) (*model.Post, string) {

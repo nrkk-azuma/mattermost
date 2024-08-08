@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 // generateDefaultConfig writes default config to outputFile.
@@ -24,6 +26,11 @@ func generateDefaultConfig(outputFile *os.File) error {
 }
 
 func main() {
+	NewRelicAgent, err := newrelic.NewApplication(newrelic.ConfigFromEnvironment())
+	if err != nil {
+		panic(err)
+	}
+
 	outputFile := os.Getenv("OUTPUT_CONFIG")
 	if outputFile == "" {
 		fmt.Println("Output file name is missing. Please set OUTPUT_CONFIG env variable to absolute path")
@@ -43,4 +50,6 @@ func main() {
 	} else {
 		panic(err)
 	}
+
+	NewRelicAgent.Shutdown(5 * time.Second)
 }

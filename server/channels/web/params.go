@@ -110,7 +110,8 @@ type Params struct {
 	InvoiceId string
 }
 
-func ParamsFromRequest(r *http.Request) *Params {
+func ParamsFromRequest(r *http.Request, nrTxn *newrelic.Transaction) *Params {
+	defer nrTxn.StartSegment("ParamsFromRequest").End()
 	params := &Params{}
 
 	props := mux.Vars(r)
@@ -163,13 +164,17 @@ func ParamsFromRequest(r *http.Request) *Params {
 	params.InvoiceId = props["invoice_id"]
 	params.OutgoingOAuthConnectionID = props["outgoing_oauth_connection_id"]
 	params.ExcludeOffline, _ = strconv.ParseBool(query.Get("exclude_offline"))
+	nrTxn.NoticeError(_)
 	params.InChannel = query.Get("in_channel")
 	params.NotInChannel = query.Get("not_in_channel")
 	params.Topic = query.Get("topic")
 	params.CreatorId = query.Get("creator_id")
 	params.OnlyConfirmed, _ = strconv.ParseBool(query.Get("only_confirmed"))
+	nrTxn.NoticeError(_)
 	params.OnlyPlugins, _ = strconv.ParseBool(query.Get("only_plugins"))
+	nrTxn.NoticeError(_)
 	params.ExcludePlugins, _ = strconv.ParseBool(query.Get("exclude_plugins"))
+	nrTxn.NoticeError(_)
 	params.ChannelBookmarkId = props["bookmark_id"]
 	params.Scope = query.Get("scope")
 
@@ -187,7 +192,8 @@ func ParamsFromRequest(r *http.Request) *Params {
 
 	params.TimeRange = query.Get("time_range")
 	params.Permanent, _ = strconv.ParseBool(query.Get("permanent"))
-	params.PerPage = getPerPageFromQuery(query)
+	nrTxn.NoticeError(_)
+	params.PerPage = getPerPageFromQuery(query, nrTxn)
 
 	if val, err := strconv.Atoi(query.Get("logs_per_page")); err != nil || val < 0 {
 		params.LogsPerPage = LogsPerPageDefault
@@ -236,8 +242,11 @@ func ParamsFromRequest(r *http.Request) *Params {
 	params.NotAssociatedToTeam = query.Get("not_associated_to_team")
 	params.NotAssociatedToChannel = query.Get("not_associated_to_channel")
 	params.FilterAllowReference, _ = strconv.ParseBool(query.Get("filter_allow_reference"))
+	nrTxn.NoticeError(_)
 	params.FilterArchived, _ = strconv.ParseBool(query.Get("filter_archived"))
+	nrTxn.NoticeError(_)
 	params.FilterParentTeamPermitted, _ = strconv.ParseBool(query.Get("filter_parent_team_permitted"))
+	nrTxn.NoticeError(_)
 	params.IncludeChannelMemberCount = query.Get("include_channel_member_count")
 
 	if val, err := strconv.ParseBool(query.Get("paginate")); err == nil {
@@ -245,14 +254,20 @@ func ParamsFromRequest(r *http.Request) *Params {
 	}
 
 	params.IncludeMemberCount, _ = strconv.ParseBool(query.Get("include_member_count"))
+	nrTxn.NoticeError(_)
 	params.IncludeMemberIDs, _ = strconv.ParseBool(query.Get("include_member_ids"))
+	nrTxn.NoticeError(_)
 	params.NotAssociatedToGroup = query.Get("not_associated_to_group")
 	params.ExcludeDefaultChannels, _ = strconv.ParseBool(query.Get("exclude_default_channels"))
+	nrTxn.NoticeError(_)
 	params.GroupIDs = query.Get("group_ids")
 	params.IncludeTotalCount, _ = strconv.ParseBool(query.Get("include_total_count"))
+	nrTxn.NoticeError(_)
 	params.IncludeDeleted, _ = strconv.ParseBool(query.Get("include_deleted"))
+	nrTxn.NoticeError(_)
 	params.ExportName = props["export_name"]
 	params.ExcludePolicyConstrained, _ = strconv.ParseBool(query.Get("exclude_policy_constrained"))
+	nrTxn.NoticeError(_)
 
 	if val := query.Get("group_source"); val != "" {
 		switch val {
@@ -278,10 +293,13 @@ func ParamsFromRequest(r *http.Request) *Params {
 // This function should be removed and the support for `pageSize`
 // should be dropped after v1.46 of the mobile app is no longer supported
 // https://mattermost.atlassian.net/browse/MM-38131
-func getPerPageFromQuery(query url.Values) int {
+func getPerPageFromQuery(query url.Values, nrTxn *newrelic.Transaction) int {
+	defer nrTxn.StartSegment("getPerPageFromQuery").End()
 	val, err := strconv.Atoi(query.Get("per_page"))
+	nrTxn.NoticeError(err)
 	if err != nil {
 		val, err = strconv.Atoi(query.Get("pageSize"))
+		nrTxn.NoticeError(err)
 	}
 	if err != nil || val < 0 {
 		return PerPageDefault

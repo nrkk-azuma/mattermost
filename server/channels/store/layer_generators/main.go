@@ -16,6 +16,9 @@ import (
 	"path"
 	"strings"
 	"text/template"
+	"time"
+
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 const (
@@ -28,6 +31,11 @@ func isError(typeName string) bool {
 }
 
 func main() {
+	NewRelicAgent, err := newrelic.NewApplication(newrelic.ConfigFromEnvironment())
+	if err != nil {
+		panic(err)
+	}
+
 	if err := buildTimerLayer(); err != nil {
 		log.Fatal(err)
 	}
@@ -37,6 +45,8 @@ func main() {
 	if err := buildRetryLayer(); err != nil {
 		log.Fatal(err)
 	}
+
+	NewRelicAgent.Shutdown(5 * time.Second)
 }
 
 func buildRetryLayer() error {

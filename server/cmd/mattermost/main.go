@@ -5,19 +5,27 @@ package main
 
 import (
 	"os"
+	"time"
 
-	"github.com/mattermost/mattermost/server/v8/cmd/mattermost/commands"
-	// Import and register app layer slash commands
-	_ "github.com/mattermost/mattermost/server/v8/channels/app/slashcommands"
 	// Plugins
 	_ "github.com/mattermost/mattermost/server/v8/channels/app/oauthproviders/gitlab"
-
+	// Import and register app layer slash commands
+	_ "github.com/mattermost/mattermost/server/v8/channels/app/slashcommands"
+	"github.com/mattermost/mattermost/server/v8/cmd/mattermost/commands"
 	// Enterprise Imports
 	_ "github.com/mattermost/mattermost/server/v8/enterprise"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 func main() {
+	NewRelicAgent, err := newrelic.NewApplication(newrelic.ConfigFromEnvironment())
+	if err != nil {
+		panic(err)
+	}
+
 	if err := commands.Run(os.Args[1:]); err != nil {
 		os.Exit(1)
 	}
+
+	NewRelicAgent.Shutdown(5 * time.Second)
 }

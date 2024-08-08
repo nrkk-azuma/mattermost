@@ -631,6 +631,9 @@ func (*LoadTestProvider) URLCommand(a *app.App, c request.CTX, args *model.Comma
 		}
 	}
 
+	// the "http.Get()" net/http method can not be instrumented and its outbound traffic can not be traced
+	// please see these examples of code patterns for external http calls that can be instrumented:
+	// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 	r, err := http.Get(url)
 	if err != nil {
 		return &model.CommandResponse{Text: "Unable to get file", ResponseType: model.CommandResponseTypeEphemeral}, err
@@ -685,6 +688,9 @@ func (*LoadTestProvider) JSONCommand(a *app.App, c request.CTX, args *model.Comm
 		}
 	}
 
+	// the "http.Get()" net/http method can not be instrumented and its outbound traffic can not be traced
+	// please see these examples of code patterns for external http calls that can be instrumented:
+	// https://docs.newrelic.com/docs/apm/agents/go-agent/configuration/distributed-tracing-go-agent/#make-http-requests
 	r, err := http.Get(url)
 	if err != nil {
 		return &model.CommandResponse{Text: "Unable to get file", ResponseType: model.CommandResponseTypeEphemeral}, err

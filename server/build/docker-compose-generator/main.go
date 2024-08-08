@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"gopkg.in/yaml.v2"
 )
 
@@ -24,6 +26,11 @@ type Container struct {
 }
 
 func main() {
+	NewRelicAgent, err := newrelic.NewApplication(newrelic.ConfigFromEnvironment())
+	if err != nil {
+		panic(err)
+	}
+
 	validServices := map[string]int{
 		"mysql":              3306,
 		"postgres":           5432,
@@ -63,4 +70,6 @@ func main() {
 		panic(fmt.Sprintf("Unable to serialize the docker-compose file: %s.", err.Error()))
 	}
 	fmt.Println(string(resultData))
+
+	NewRelicAgent.Shutdown(5 * time.Second)
 }

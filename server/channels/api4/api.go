@@ -8,10 +8,10 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/mattermost/go-i18n/i18n"
-
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/v8/channels/app"
 	"github.com/mattermost/mattermost/server/v8/channels/web"
+	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
 type Routes struct {
@@ -434,8 +434,10 @@ func InitLocal(srv *app.Server) *API {
 }
 
 func (api *API) Handle404(w http.ResponseWriter, r *http.Request) {
+	nrTxn := newrelic.FromContext(r.Context())
+
 	app := app.New(app.ServerConnector(api.srv.Channels()))
-	web.Handle404(app, w, r)
+	web.Handle404(app, w, r, nrTxn)
 }
 
 var ReturnStatusOK = web.ReturnStatusOK
